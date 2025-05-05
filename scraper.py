@@ -5,18 +5,28 @@
 # ]
 # ///
 import os
-from typing import List, Self
+from sys import modules
+from typing import List, Literal, Self
 import libcst as cst
-from libcst.display import dump
 
 
 class ProjectVisitor(cst.CSTVisitor):
-    def __init__(self: Self, module: cst.Module,  output_file: str) -> None:
-        self.output_file: str = output_file
+    def __init__(self: Self, module: cst.Module,  input_file: str, output_file: str) -> None:
         self.module: cst.Module = module
-        self.separator: str = "-" * 50
+        self.input_file: str = input_file
+        self.output_file: str = output_file
+
+        self.in_file_separator: str = "-" * 50
+        self.out_file_separator: str = "+" * 50
+
         super().__init__()
 
+    def visit_Module(self: Self, node: cst.Module) -> bool | None:
+       with open(self.output_file, "a") as f:
+        f.write(f"\n{self.out_file_separator}\n\nCurrent file: {self.input_file}\n\n")
+
+        return super().visit_Module(node)
+    
     def visit_ClassDef(self: Self, node: cst.ClassDef) -> bool | None:
         class_name: str = node.name.value
 
@@ -29,22 +39,18 @@ class ProjectVisitor(cst.CSTVisitor):
         super_class_names: List[str] = [
             name if isinstance(name, str) else name.value for name in super_class_names
         ]
+        class_definition: str = f"class {class_name}{("(" + ",".join(super_class_names) + ")") if len(super_class_names) >= 1 else ""}:"
 
         with open(self.output_file, "a") as f:
-            inherit_string: str = (
-                f"inherit(s) from: {','.join(super_class_names)}"
-                if len(super_class_names) >= 1
-                else "doesn't inherit from any class."
-            )
             f.write(
-                f"{self.separator}\n\nThe name of the class: {class_name}, and this class {inherit_string}\n\n"
+                f"{self.in_file_separator}\n\n{class_definition}\n\n"
             )
 
         return super().visit_ClassDef(node)
 
     def leave_ClassDef(self: Self, original_node: cst.ClassDef) -> None:
         with open(self.output_file, "a") as f:
-            f.write(f"{self.separator}\n\n")
+            f.write(f"{self.in_file_separator}\n\n")
         
         return super().leave_ClassDef(original_node)
 
@@ -54,10 +60,12 @@ class ProjectVisitor(cst.CSTVisitor):
         if function_name.startswith("_") or function_name.startswith("__"):
             return
 
-        function_definition = f"def {function_name}({self.module.code_for_node(node.params)})"
+        function_definition: str = f"def {function_name}({self.module.code_for_node(node.params)})"
         if node.returns is not None:
-            function_return = self.module.code_for_node(node.returns.annotation)
-            function_definition += f" -> {function_return}"
+            function_return: str = self.module.code_for_node(node.returns.annotation)
+            function_definition += f" -> {function_return}:"
+        else:
+            function_definition += ":"
         
         with open(self.output_file, "a") as f:
             f.write(f"{function_definition}\n")
@@ -65,7 +73,7 @@ class ProjectVisitor(cst.CSTVisitor):
         return super().visit_FunctionDef_params(node)
 
 
-DOCS_FILE = "manim_docs.txt"
+DOCS_FILE: str = "manim_docs.txt"
 if True:
     with open(DOCS_FILE, "w") as f:
         f.close()
@@ -78,4 +86,4 @@ for directory_path, _, file_names in os.walk("manimlib"):
         
         with open(current_file) as f:
             code_module: cst.Module = cst.parse_module(f.read())
-            code_module.visit(ProjectVisitor(code_module, output_file=DOCS_FILE))
+            code_module.visit(ProjectVisitor(module=code_module, input_file=current_file, output_file=DOCS_FILE))
