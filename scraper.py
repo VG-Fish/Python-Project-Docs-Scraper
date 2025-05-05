@@ -5,8 +5,7 @@
 # ]
 # ///
 import os
-from sys import modules
-from typing import List, Literal, Self
+from typing import List, Self
 import libcst as cst
 
 
