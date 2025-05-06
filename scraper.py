@@ -73,14 +73,23 @@ class ProjectVisitor(cst.CSTVisitor):
 
 
 DOCS_FILE: str = "manim_docs.txt"
+PROJECT_DIRECTORY: str = "manim"
 if True:
     with open(DOCS_FILE, "w") as f:
         f.close()
 
-for directory_path, _, file_names in os.walk("manimlib"):
+for directory_path, _, file_names in os.walk(PROJECT_DIRECTORY):
     for file_name in file_names:
         current_file: str = os.path.join(directory_path, file_name)
-        if not current_file.endswith("py") or current_file.endswith("__init__.py"):
+        
+        if "_" in directory_path:
+            continue
+
+        if (
+            not current_file.endswith("py") 
+            or current_file.endswith("__init__.py")
+            or current_file.endswith("__main__.py")
+        ):
             continue
         
         with open(current_file) as f:
